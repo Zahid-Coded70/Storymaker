@@ -1,6 +1,8 @@
 export type StoryPage = {
   title: string;
   body: string;
+  imagePrompt: string;
+  imageUrl: string | null;
 };
 
 export type Story = {

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Storymaker",
-  description: "Type a topic, get a 5-page story.",
+  title: "Storymenia",
+  description: "Type a topic, get a 5-page illustrated story.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

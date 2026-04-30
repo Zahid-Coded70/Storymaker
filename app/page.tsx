@@ -62,8 +62,8 @@ export default function Page() {
       <main className={styles.app}>
         <div className={styles.loadingView}>
           <div className={styles.spinner} />
-          <h2 className={styles.loadingTitle}>Writing your story…</h2>
-          <p className={styles.loadingSub}>Usually takes 10–30 seconds.</p>
+          <h2 className={styles.loadingTitle}>Writing &amp; illustrating your story…</h2>
+          <p className={styles.loadingSub}>This takes about a minute — 5 pages, 5 images.</p>
         </div>
       </main>
     );
@@ -82,6 +82,17 @@ export default function Page() {
           </div>
 
           <article className={styles.pageCard}>
+            {page.imageUrl ? (
+              <img
+                src={page.imageUrl}
+                alt={page.imagePrompt}
+                className={styles.pageImage}
+              />
+            ) : (
+              <div className={styles.pageImagePlaceholder}>
+                <span>Illustration unavailable for this page</span>
+              </div>
+            )}
             <div className={styles.pageMeta}>
               <span className={styles.pageMetaDot} />
               <span>
@@ -132,10 +143,11 @@ export default function Page() {
   return (
     <main className={styles.app}>
       <div className={styles.promptView}>
-        <span className={styles.eyebrow}>Powered by OpenRouter</span>
+        <span className={styles.eyebrow}>✨ Storymenia</span>
         <h1 className={styles.title}>Tell me a story.</h1>
         <p className={styles.tagline}>
-          Type a topic, character, or premise. I&apos;ll write you a 5-page tale.
+          Type a topic, character, or premise. I&apos;ll write you a 5-page
+          illustrated tale.
         </p>
 
         <form className={styles.form} onSubmit={generate}>

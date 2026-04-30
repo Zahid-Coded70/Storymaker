@@ -226,6 +226,39 @@
   .pageCard { padding: 28px 24px; }
 }
 
+.pageImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 14px;
+  margin: -12px 0 28px;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(56, 189, 248, 0.1));
+  box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.5),
+              0 0 0 1px rgba(168, 85, 247, 0.15);
+  animation: imgFadeIn 0.6s ease;
+}
+
+.pageImagePlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 14px;
+  margin: -12px 0 28px;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.08), rgba(56, 189, 248, 0.05));
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+@keyframes imgFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .pageMeta {
   display: flex;
   align-items: center;
