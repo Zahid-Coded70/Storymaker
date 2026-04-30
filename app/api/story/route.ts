@@ -13,7 +13,7 @@ Output ONLY a single JSON object with this exact shape — no markdown fences, n
   "pages": [
     {
       "title": "page 1 title (under 60 chars)",
-      "body": "page 1 narrative — 2 to 4 paragraphs",
+      "body": "page 1 narrative — at most 30 words, 1 to 2 short sentences",
       "imagePrompt": "a single rich visual description for this page's illustration"
     },
     { "title": "...", "body": "...", "imagePrompt": "..." },
@@ -25,7 +25,7 @@ Output ONLY a single JSON object with this exact shape — no markdown fences, n
 
 Rules:
 - Exactly 5 pages.
-- Each page body should be 150–280 words of prose.
+- HARD LIMIT: each page body must be 30 words or fewer (1 to 2 short sentences). Be punchy, not verbose.
 - Pages flow as one continuous story with a clear arc: setup, rising action, climax, falling action, resolution.
 - Use sensory detail. Show, don't tell.
 - Do not number page titles ("Page 1:" etc.) — give each a thematic title.
@@ -34,10 +34,21 @@ Rules:
   - Style guidance: prefer "cinematic illustration, painterly, dramatic lighting" or "storybook illustration, soft watercolor".
   - Keep imagePrompts visually concrete; do NOT include text or letters in the image.`;
 
+const MAX_WORDS_PER_PAGE = 30;
+
 type RawStory = {
   title: string;
   pages: { title: string; body: string; imagePrompt: string }[];
 };
+
+// Hard cap on body length. The system prompt asks the model to stay under this,
+// but enforce it server-side so a chatty model can't break the limit.
+function clampWords(text: string, maxWords: number): string {
+  const words = text.trim().split(/\s+/);
+  if (words.length <= maxWords) return text.trim();
+  const clipped = words.slice(0, maxWords).join(" ").replace(/[,;:—\-]+$/, "");
+  return /[.!?…]$/.test(clipped) ? clipped : clipped + "…";
+}
 
 function extractJson(text: string): string {
   const trimmed = text.trim();
@@ -109,28 +120,36 @@ async function generateStoryText(prompt: string): Promise<RawStory> {
   return parsed;
 }
 
-async function generateLumenImage(prompt: string): Promise<string | null> {
-  const apiKey = process.env.LUMEN_API_KEY;
+// OpenRouter image generation goes through the chat-completions endpoint with
+// an image-capable model (e.g. Gemini 2.5 Flash Image). The response embeds the
+// image as a base64 data URI in either `message.images[].image_url.url` or
+// `message.content[].image_url.url`, depending on the upstream provider.
+async function generateOpenRouterImage(prompt: string): Promise<string | null> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return null;
-  const modelId = Number(process.env.LUMEN_MODEL_ID) || 19;
+
+  const model =
+    process.env.OPENROUTER_IMAGE_MODEL || "google/gemini-2.5-flash-image";
+  const appName = process.env.OPENROUTER_APP_NAME || "Storymenia";
 
   let res: Response;
   try {
-    res = await fetch("https://app.lumenpro.io/mcp", {
+    res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Accept: "application/json, text/event-stream",
         Authorization: `Bearer ${apiKey}`,
+        "X-Title": appName,
       },
       body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: Math.floor(Math.random() * 1_000_000),
-        method: "tools/call",
-        params: {
-          name: "generate_image",
-          arguments: { model_id: modelId, prompt },
-        },
+        model,
+        modalities: ["image", "text"],
+        messages: [
+          {
+            role: "user",
+            content: `Generate a single illustration. Subject: ${prompt}. No text or letters in the image.`,
+          },
+        ],
       }),
     });
   } catch {
@@ -139,32 +158,34 @@ async function generateLumenImage(prompt: string): Promise<string | null> {
 
   if (!res.ok) return null;
 
-  const text = await res.text();
+  try {
+    const json = (await res.json()) as {
+      choices?: {
+        message?: {
+          content?: unknown;
+          images?: { image_url?: { url?: string }; url?: string }[];
+        };
+      }[];
+    };
+    const message = json.choices?.[0]?.message;
+    if (!message) return null;
 
-  // Response is SSE: lines starting with "data: <json>". The final non-notification entry
-  // has the actual result. Walk from the end and find the first parseable result.
-  const dataLines = text
-    .split(/\r?\n/)
-    .filter((l) => l.startsWith("data:"))
-    .map((l) => l.slice(5).trim())
-    .filter(Boolean);
-
-  const candidates = dataLines.length ? dataLines : [text.trim()];
-
-  for (let i = candidates.length - 1; i >= 0; i--) {
-    try {
-      const parsed = JSON.parse(candidates[i]);
-      if (parsed.result?.content) {
-        const textBlock = parsed.result.content.find(
-          (c: { type?: string }) => c.type === "text"
-        );
-        const content: string = textBlock?.text ?? "";
-        const urlMatch = content.match(/https?:\/\/[^\s)\]]+?\.(?:png|jpg|jpeg|webp|gif)/i);
-        if (urlMatch) return urlMatch[0];
+    if (Array.isArray(message.images)) {
+      for (const img of message.images) {
+        const url = img?.image_url?.url ?? img?.url;
+        if (typeof url === "string" && url.length > 0) return url;
       }
-    } catch {
-      // not JSON, try next
     }
+
+    if (Array.isArray(message.content)) {
+      for (const part of message.content as { type?: string; image_url?: { url?: string } }[]) {
+        if (part?.type === "image_url" && part?.image_url?.url) {
+          return part.image_url.url;
+        }
+      }
+    }
+  } catch {
+    // fall through to null
   }
 
   return null;
@@ -203,18 +224,21 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Generate all 5 images in parallel. If any fail, page just shows no image.
+  // Generate all 5 images in parallel via OpenRouter. If any fail, the page
+  // falls back to the "illustration unavailable" placeholder.
   const imageResults = await Promise.allSettled(
-    raw.pages.map((p) => generateLumenImage(p.imagePrompt))
+    raw.pages.map((p) => generateOpenRouterImage(p.imagePrompt))
   );
 
-  const pages: StoryPage[] = raw.pages.map((p, i) => ({
-    title: p.title,
-    body: p.body,
-    imagePrompt: p.imagePrompt,
-    imageUrl:
-      imageResults[i].status === "fulfilled" ? imageResults[i].value : null,
-  }));
+  const pages: StoryPage[] = raw.pages.map((p, i) => {
+    const r = imageResults[i];
+    return {
+      title: p.title,
+      body: clampWords(p.body, MAX_WORDS_PER_PAGE),
+      imagePrompt: p.imagePrompt,
+      imageUrl: r.status === "fulfilled" ? r.value : null,
+    };
+  });
 
   const story: Story = { title: raw.title, pages };
   return NextResponse.json<GenerateResponse>({ ok: true, story });
