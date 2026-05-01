@@ -68,8 +68,13 @@ export default function Page() {
   // highlighted yet (or boundary fired inside the title prefix).
   const [boundary, setBoundary] = useState<{ start: number; len: number }>({ start: -1, len: 0 });
   const [hydrated, setHydrated] = useState(false);
+  // True only when the story was just restored from IndexedDB on mount; used
+  // to show a brief "welcome back" banner. Auto-clears after a few seconds.
+  const [resumed, setResumed] = useState(false);
 
   // Restore the saved story (if any) on first mount.
+  // IndexedDB is per-browser-profile, so a fresh device finds nothing and
+  // lands on the prompt screen; a returning device resumes where it left off.
   useEffect(() => {
     let alive = true;
     loadCurrentStory().then((saved) => {
@@ -78,6 +83,7 @@ export default function Page() {
         setStory(saved.story);
         setPageIdx(saved.pageIdx);
         setView("story");
+        setResumed(true);
       }
       setHydrated(true);
     });
@@ -85,6 +91,13 @@ export default function Page() {
       alive = false;
     };
   }, []);
+
+  // Auto-dismiss the "resumed" banner after 5 seconds.
+  useEffect(() => {
+    if (!resumed) return;
+    const t = setTimeout(() => setResumed(false), 5000);
+    return () => clearTimeout(t);
+  }, [resumed]);
 
   // Persist story + pageIdx whenever they change (after hydration). When the
   // user resets back to the prompt screen, clear the saved record.
@@ -210,6 +223,7 @@ export default function Page() {
     setError(null);
     setPaused(false);
     setBoundary({ start: -1, len: 0 });
+    setResumed(false);
   }
 
   // Don't render until we've checked IDB — prevents the prompt screen from
@@ -237,6 +251,11 @@ export default function Page() {
       <main className={styles.app}>
         <div className={styles.storyView}>
           <div className={styles.siteName}>StoryMania</div>
+          {resumed && (
+            <div className={styles.resumedBanner} role="status">
+              Welcome back — picked up where you left off on this device.
+            </div>
+          )}
           <div className={styles.storyHeader}>
             <h1 className={styles.storyTitle}>{story.title}</h1>
             <button

@@ -84,6 +84,7 @@ The story view shows the site name "**StoryMania**" above the story title — se
 
 - **IndexedDB, not localStorage**, for the saved story. A 5-page story embeds 5 base64 PNG data URIs (~2–6MB total) — Safari's ~5MB localStorage cap would risk `QuotaExceededError` on first save. IndexedDB has multi-GB quotas. Persistence is best-effort: every helper in `app/storyDb.ts` wraps in try/catch so a quota or private-mode failure can never crash the UI.
 - **Only the *current* story persists** — generating a new one overwrites it; clicking "New story" clears it. There is no library/history view by design (user explicitly chose this scope).
+- **Per-device, per-browser-profile resume** — IndexedDB is local to the origin in the current browser, so a new device / different browser starts at the prompt screen ("main"), while the same device resumes the saved story. This is the intended behavior, not a bug to fix with server-side sync. A small "Welcome back" banner shows for ~5s on resume so the difference is visible to users.
 - **`voiceOn` and the prompt textarea draft are NOT persisted.** Voice on/off is a session-level UI preference; the prompt is ephemeral. Don't add persistence for either without asking.
 - **Two brand names** ("Storymenia" in metadata/eyebrow, "StoryMania" above the story title). Treat as a deliberate split, not a typo.
 - **Image gen via chat-completions, not a dedicated /images endpoint.** OpenRouter doesn't expose a unified images API; routing through chat-completions with `modalities` is the supported pattern.

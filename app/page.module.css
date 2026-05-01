@@ -189,6 +189,24 @@
   margin-bottom: 20px;
 }
 
+.resumedBanner {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  padding: 8px 14px;
+  background: rgba(168, 85, 247, 0.08);
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  border-radius: 8px;
+  margin: -8px auto 16px;
+  max-width: 420px;
+  animation: resumedFade 0.3s ease-out;
+}
+
+@keyframes resumedFade {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .storyHeader {
   display: flex;
   justify-content: space-between;
