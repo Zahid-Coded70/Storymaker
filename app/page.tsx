@@ -15,6 +15,46 @@ const SUGGESTIONS = [
 
 type View = "idle" | "loading" | "story";
 
+// Render the page body with the currently-spoken word highlighted.
+// `boundary.start` is a char offset into the body (-1 = no highlight).
+// Splits on \n\n+ for paragraphs and only highlights inside the matching one.
+function renderBodyWithHighlight(
+  body: string,
+  boundary: { start: number; len: number }
+) {
+  const paragraphs: { text: string; start: number }[] = [];
+  let cursor = 0;
+  while (cursor < body.length) {
+    const sep = body.slice(cursor).search(/\n\n+/);
+    if (sep === -1) {
+      paragraphs.push({ text: body.slice(cursor), start: cursor });
+      break;
+    }
+    paragraphs.push({ text: body.slice(cursor, cursor + sep), start: cursor });
+    cursor += sep + body.slice(cursor + sep).match(/\n\n+/)![0].length;
+  }
+  if (paragraphs.length === 0) paragraphs.push({ text: body, start: 0 });
+
+  const { start, len } = boundary;
+  return paragraphs.map((p, i) => {
+    const pEnd = p.start + p.text.length;
+    if (len <= 0 || start < 0 || start >= pEnd || start + len <= p.start) {
+      return <p key={i}>{p.text}</p>;
+    }
+    const localStart = Math.max(0, start - p.start);
+    const localEnd = Math.min(p.text.length, start + len - p.start);
+    return (
+      <p key={i}>
+        {p.text.slice(0, localStart)}
+        <span className={styles.spokenWord}>
+          {p.text.slice(localStart, localEnd)}
+        </span>
+        {p.text.slice(localEnd)}
+      </p>
+    );
+  });
+}
+
 export default function Page() {
   const [view, setView] = useState<View>("idle");
   const [prompt, setPrompt] = useState("");
@@ -22,6 +62,10 @@ export default function Page() {
   const [pageIdx, setPageIdx] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [voiceOn, setVoiceOn] = useState(true);
+  const [paused, setPaused] = useState(false);
+  // Highlighted word offset within the *body* of the current page. -1 = nothing
+  // highlighted yet (or boundary fired inside the title prefix).
+  const [boundary, setBoundary] = useState<{ start: number; len: number }>({ start: -1, len: 0 });
   const [hydrated, setHydrated] = useState(false);
 
   // Restore the saved story (if any) on first mount.
@@ -55,6 +99,7 @@ export default function Page() {
   }, [hydrated, view, story, pageIdx]);
 
   // Speak the current page; on natural end, auto-advance to the next page.
+  // Track word boundaries so we can highlight the word being spoken.
   // Cancellation flag prevents the canceled-utterance `onend` callback from
   // incorrectly auto-advancing when the user navigates manually.
   useEffect(() => {
@@ -63,17 +108,44 @@ export default function Page() {
 
     const synth = window.speechSynthesis;
     const page = story.pages[pageIdx];
-    const text = `${page.title}. ${page.body}`;
+    const titlePrefix = `${page.title}. `;
+    const text = titlePrefix + page.body;
 
     synth.cancel();
+    setPaused(false);
+    setBoundary({ start: -1, len: 0 });
 
     let cancelled = false;
     const utter = new SpeechSynthesisUtterance(text);
     utter.lang = "en-US";
     utter.rate = 0.95;
     utter.pitch = 1;
+
+    utter.onboundary = (event) => {
+      if (cancelled) return;
+      if (event.name && event.name !== "word") return;
+      const idx = event.charIndex;
+      if (idx < titlePrefix.length) {
+        // Boundary is in the title — clear body highlight.
+        setBoundary({ start: -1, len: 0 });
+        return;
+      }
+      const bodyIdx = idx - titlePrefix.length;
+      // Some browsers (Chrome/Firefox) provide charLength; older Safari doesn't.
+      // Fall back to scanning to the next whitespace.
+      const fromEvent = (event as SpeechSynthesisEvent & { charLength?: number }).charLength;
+      let len = typeof fromEvent === "number" && fromEvent > 0 ? fromEvent : 0;
+      if (!len) {
+        let j = bodyIdx;
+        while (j < page.body.length && !/\s/.test(page.body[j])) j++;
+        len = Math.max(1, j - bodyIdx);
+      }
+      setBoundary({ start: bodyIdx, len });
+    };
+
     utter.onend = () => {
       if (cancelled) return;
+      setBoundary({ start: -1, len: 0 });
       if (pageIdx < story.pages.length - 1) {
         setPageIdx((i) => Math.min(story.pages.length - 1, i + 1));
       }
@@ -85,6 +157,18 @@ export default function Page() {
       synth.cancel();
     };
   }, [view, story, pageIdx, voiceOn]);
+
+  function togglePause() {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const synth = window.speechSynthesis;
+    if (paused) {
+      synth.resume();
+      setPaused(false);
+    } else {
+      synth.pause();
+      setPaused(true);
+    }
+  }
 
   async function generate(e?: React.FormEvent) {
     e?.preventDefault();
@@ -123,6 +207,8 @@ export default function Page() {
     setPageIdx(0);
     setView("idle");
     setError(null);
+    setPaused(false);
+    setBoundary({ start: -1, len: 0 });
   }
 
   // Don't render until we've checked IDB — prevents the prompt screen from
@@ -152,6 +238,15 @@ export default function Page() {
           <div className={styles.siteName}>StoryMania</div>
           <div className={styles.storyHeader}>
             <h1 className={styles.storyTitle}>{story.title}</h1>
+            <button
+              className={styles.newStoryBtn}
+              onClick={togglePause}
+              disabled={!voiceOn}
+              aria-pressed={paused}
+              title={paused ? "Resume narration" : "Pause narration"}
+            >
+              {paused ? "Resume" : "Pause"}
+            </button>
             <button
               className={styles.newStoryBtn}
               onClick={() => setVoiceOn((v) => !v)}
@@ -195,9 +290,7 @@ export default function Page() {
             </div>
             <h2 className={styles.pageTitle}>{page.title}</h2>
             <div className={styles.pageBody}>
-              {page.body.split(/\n\n+/).map((para, i) => (
-                <p key={i}>{para}</p>
-              ))}
+              {renderBodyWithHighlight(page.body, boundary)}
             </div>
           </article>
 

@@ -13,7 +13,7 @@ Output ONLY a single JSON object with this exact shape — no markdown fences, n
   "pages": [
     {
       "title": "page 1 title (under 60 chars)",
-      "body": "page 1 narrative — at most 30 words, 1 to 2 short sentences",
+      "body": "page 1 narrative — at most 50 words, 1 to 3 short sentences",
       "imagePrompt": "a single rich visual description for this page's illustration"
     },
     { "title": "...", "body": "...", "imagePrompt": "..." },
@@ -25,7 +25,7 @@ Output ONLY a single JSON object with this exact shape — no markdown fences, n
 
 Rules:
 - Exactly 5 pages.
-- HARD LIMIT: each page body must be 30 words or fewer (1 to 2 short sentences). Be punchy, not verbose.
+- HARD LIMIT: each page body must be 50 words or fewer (1 to 3 short sentences). Be punchy, not verbose.
 - Pages flow as one continuous story with a clear arc: setup, rising action, climax, falling action, resolution.
 - Use sensory detail. Show, don't tell.
 - Do not number page titles ("Page 1:" etc.) — give each a thematic title.
@@ -34,7 +34,7 @@ Rules:
   - Style guidance: prefer "cinematic illustration, painterly, dramatic lighting" or "storybook illustration, soft watercolor".
   - Keep imagePrompts visually concrete; do NOT include text or letters in the image.`;
 
-const MAX_WORDS_PER_PAGE = 30;
+const MAX_WORDS_PER_PAGE = 50;
 
 type RawStory = {
   title: string;

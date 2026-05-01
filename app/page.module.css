@@ -222,9 +222,14 @@
   flex-shrink: 0;
 }
 
-.newStoryBtn:hover {
+.newStoryBtn:hover:not(:disabled) {
   border-color: var(--accent);
   color: white;
+}
+
+.newStoryBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .pageCard {
@@ -310,6 +315,16 @@
 
 .pageBody p { margin: 0 0 1em; }
 .pageBody p:last-child { margin-bottom: 0; }
+
+.spokenWord {
+  background: linear-gradient(180deg, rgba(168, 85, 247, 0.45), rgba(168, 85, 247, 0.25));
+  color: #fff;
+  border-radius: 4px;
+  padding: 1px 4px;
+  margin: 0 -2px;
+  box-shadow: 0 0 0 1px rgba(168, 85, 247, 0.35);
+  transition: background-color 0.08s ease-out;
+}
 
 .pageNav {
   display: flex;

@@ -16,8 +16,8 @@ You only need one secret: an [OpenRouter API key](https://openrouter.ai/keys). T
 
 ## Features
 
-- **Prompt → 5-page story** in ~60 seconds. Each page has a title, ≤30-word body, and a generated illustration.
-- **Voice narration** via the browser's Web Speech API (no API call, no cost). Auto-advances to the next page when the current one finishes reading. Toggleable.
+- **Prompt → 5-page story** in ~60 seconds. Each page has a title, ≤50-word body, and a generated illustration.
+- **Voice narration** via the browser's Web Speech API (no API call, no cost). The current word is highlighted as it's spoken; auto-advances to the next page when the current one finishes. Pause / Resume / mute controls in the story header.
 - **Refresh-safe** — the current story (and your current page) is persisted in IndexedDB. Reload the tab and pick up where you left off.
 - **Graceful fallbacks** — if any image fails to generate or load, the page shows a placeholder instead of a broken icon.
 
