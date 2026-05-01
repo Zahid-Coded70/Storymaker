@@ -19,6 +19,7 @@ You only need one secret: an [OpenRouter API key](https://openrouter.ai/keys). T
 - **Prompt → 5-page story** in ~60 seconds. Each page has a title, ≤50-word body, and a generated illustration.
 - **Voice narration** via the browser's Web Speech API (no API call, no cost). The current word is highlighted as it's spoken; auto-advances to the next page when the current one finishes. Pause / Resume / mute controls in the story header.
 - **Refresh-safe** — the current story (and your current page) is persisted in IndexedDB. Reload the tab and pick up where you left off.
+- **Save as PDF** — one-click download of the full story with embedded illustrations (A4, client-side via jsPDF).
 - **Graceful fallbacks** — if any image fails to generate or load, the page shows a placeholder instead of a broken icon.
 
 ## Configuration
@@ -38,7 +39,7 @@ Image gen costs roughly $0.04/image on Gemini Flash Image → ~$0.20 per 5-page 
 
 - Next.js 14 (App Router) · React 18 · TypeScript
 - OpenRouter (text + image) · Web Speech API (TTS)
-- IndexedDB (current-story persistence)
+- IndexedDB (current-story persistence) · jsPDF (PDF export)
 - CSS Modules
 
 ## Project layout
@@ -48,6 +49,7 @@ app/
   api/story/route.ts    POST /api/story — generates story + images
   page.tsx              Single-page UI: prompt → loading → story
   storyDb.ts            IndexedDB wrapper for persisting the current story
+  storyPdf.ts           jsPDF-based "Save as PDF" exporter
   types.ts              Shared Story / StoryPage types
   layout.tsx            HTML shell + metadata
   globals.css           Theme variables

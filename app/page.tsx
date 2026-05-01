@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import styles from "./page.module.css";
 import type { GenerateResponse, Story } from "./types";
 import { clearCurrentStory, loadCurrentStory, saveCurrentStory } from "./storyDb";
+import { downloadStoryPdf } from "./storyPdf";
 
 const SUGGESTIONS = [
   "A lighthouse keeper who finds a message in a bottle",
@@ -254,6 +255,13 @@ export default function Page() {
               title={voiceOn ? "Turn narration off" : "Turn narration on"}
             >
               {voiceOn ? "Voice on" : "Voice off"}
+            </button>
+            <button
+              className={styles.newStoryBtn}
+              onClick={() => downloadStoryPdf(story)}
+              title="Download this story as a PDF"
+            >
+              Save PDF
             </button>
             <button className={styles.newStoryBtn} onClick={reset}>
               New story

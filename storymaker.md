@@ -42,6 +42,7 @@ app/layout.tsx            <html>/<body> shell + metadata
 app/globals.css           theme variables (--bg, --accent, etc.)
 app/types.ts              shared Story / StoryPage / GenerateResponse types
 app/storyDb.ts            IndexedDB wrapper for persisting the current story
+app/storyPdf.ts           jsPDF-based "Save as PDF" exporter (client-only)
 app/api/story/route.ts    POST endpoint: prompt → 5 pages with images
 ```
 
